@@ -39,6 +39,49 @@ for team, p_table in pairs(PVP.teams) do
     end
 end
 
+-- Functions for team leaders
+local function remove_from_team(name, team)
+	if team == "red" then
+		PVP.teams.red[name] = nil
+	elseif team == "blue" then
+		PVP.teams.blue[name] = nil
+	elseif team == "yellow" then
+		PVP.teams.yellow[name] = nil
+	elseif team == "green" then
+		PVP.teams.green[name] = nil
+	else
+		return
+	end
+end
+
+local function get_team(name)
+	for team in pairs(PVP.teams) do
+		for red in pairs(team.red) do
+			if name == red then
+				return "red"
+			end
+		end
+
+		for blue in pairs(team.blue) do
+			if name == blue then
+				return "blue"
+			end
+		end
+
+		for yellow in pairs(team.yellow) do
+			if name == yellow then
+				return "yellow"
+			end
+		end
+
+		for green in pairs(team.green) do
+			if name == green then
+				return "green"
+			end
+		end
+	end
+end
+
 -- Spawn immunity
 minetest.register_globalstep(function(dtime)
     for name, ctime in pairs(immune_players) do
@@ -64,6 +107,8 @@ end
 
 -- Name tag coloring
 local owners = {"DiamondPlane", "gameit", "Elvis26"}
+local team_leaders = {"DiamondPlane", "j45", "liver_the_pool", "Rtx"}
+
 mt.register_on_joinplayer(function(player, n)
     for team, p_table in pairs(PVP.teams) do
         for index, member in pairs(p_table) do
@@ -75,14 +120,29 @@ mt.register_on_joinplayer(function(player, n)
                         i = #owners + 1
                     end
                 end
+
+		local is_team_leader = false
+
+		for i = 0, #team_leaders do
+			if team_leaders[i] == member then
+				is_team_leader = true
+				i = #team_leaders + 1
+		end
+
                 local props = {
                     color = PVP.team_color(member),
                     text = member
                 }
+
                 if is_owner then
                     props.text = props.text..mt.colorize("#d88119", " (Owner)")
                 end
-                player:set_nametag_attributes(props)
+
+		if is_team_leader then
+			props.text = propls.text..mt.colorize("#800080", " (Team Leader")
+		end
+                
+		player:set_nametag_attributes(props)
                 immune_players[player:get_player_name()] = PVP.spawn.immunity_time
                 minetest.after(0,function(player)
                     player:hud_set_hotbar_image("pvp_club_hotbar_"..PVP.get_team(player:get_player_name())..".png")
@@ -128,6 +188,26 @@ local function is_inside_spawn(pos)
 	end
 	return false
 end
+
+-- Team Leader commands
+minetest.register_chatcommand("teaml", {
+	description = "Team leader commands",
+	params = "<kick> <target>",
+	privs = {team_leader = true},
+
+	func = function(name, param)
+		local action = param:split(" ")[1]
+		local target = param:split(" ")[2]
+
+		if not action or not target then return end
+
+		local team = get_team_of(name)
+
+		remove_from_team(team, target)
+
+		return true, "Kicked " .. target .. " from the " .. team .. " team!"
+	end
+})
 
 --minetest. Registering
 mt.register_on_respawnplayer(function(player)
@@ -262,7 +342,7 @@ mt.register_chatcommand("score", {
 		return true, "Player "..mt.colorize(PVP.team_color(name), name).." has "..score.." score"
 	else
 		return true, "Invalid Player Name!"
-    end
+        end
     end
 end
 })
